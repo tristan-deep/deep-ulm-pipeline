@@ -23,7 +23,7 @@ Args:
 
 ```
 
-**Note:**
+> **Note:**
 Make sure the localizations are stored in the correct format (hdf5) and have only a single localization file per folder. You can refer to the `read.py` file and the `ReadLocs` class for more information on the correct format.
 
 ### Save localizations
