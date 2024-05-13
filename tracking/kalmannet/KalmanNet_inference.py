@@ -1,0 +1,249 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr 28 10:02:28 2022
+
+@author: s153325
+"""
+
+"""# **Class: KalmanNet**"""
+
+import tensorflow as tf
+
+
+class KalmanNet(tf.keras.Model):  # torch.nn.Module):
+
+    ###################
+    ### Constructor ###
+    ###################
+    def __init__(self):
+        super().__init__()
+
+    #############
+    ### Build ###
+    #############
+    def Build(self, checkpoint, ssModel):
+
+        self.InitSystemDynamics(ssModel.F, ssModel.H)
+
+        # Retrieve Knet parameters from filename
+        checkpoint_str = str(checkpoint)
+        params_str = ["L1", "L2", "HN"]
+        params = [
+            int(checkpoint_str[checkpoint_str.find(p) + 3 : checkpoint_str.find(p) + 5])
+            for p in params_str
+        ]
+        [self.N_neur_L1, self.N_neur_L2, self.hidden_dim_factor] = params
+
+        # Number of neurons in the 1st hidden layer
+        H1_KNet = (self.m + self.n) * (self.N_neur_L1) * 8
+
+        # Number of neurons in the 2nd hidden layer
+        H2_KNet = (self.m * self.n) * (self.N_neur_L2)
+
+        # Initialize model
+        self.InitKGainNet(H1_KNet, H2_KNet)
+
+        # Load weights
+        self.load_weights(checkpoint).expect_partial()
+
+    ######################################
+    ### Initialize Kalman Gain Network ###
+    ######################################
+    def InitKGainNet(self, H1, H2):
+
+        # Input Dimensions
+        D_in = self.m + self.n + self.n  # x(t-1), y(t), ^y(t)
+        self.y_prev = 0
+
+        # # Output Dimensions
+        D_out = self.m * self.n  # Kalman Gain
+
+        ### Input Layer ###
+        self.KG_l1 = tf.keras.layers.Dense(
+            units=H1, use_bias=True, input_shape=(None, D_in, 1)
+        )  # Linear Layer
+        self.KG_relu1 = (
+            tf.keras.layers.ReLU()
+        )  # ReLU (Rectified Linear Unit) Activation Function
+
+        ### GRU ###
+        self.input_dim = H1  # Input Dimension
+        self.hidden_dim = (
+            self.m * self.m + self.n * self.n
+        ) * self.hidden_dim_factor  # Hidden Dimension
+        self.seq_len_input = 1  # Input Sequence Length
+        self.seq_len_hidden = 1  # Hidden Sequence Length
+        # Initialize a Tensor for Hidden State
+        self.hn = tf.random.normal((self.seq_len_hidden, 1, self.hidden_dim))
+        # Iniatialize GRU Layer
+        self.GRU = tf.keras.layers.GRU(
+            self.hidden_dim, return_sequences=False, return_state=True, stateful=False
+        )
+
+        ### Hidden Layer ###
+        self.KG_l2 = tf.keras.layers.Dense(units=H2, use_bias=True)
+        self.KG_relu2 = tf.keras.layers.ReLU()
+
+        ### Output Layer ###
+        self.KG_l3 = tf.keras.layers.Dense(
+            units=D_out, use_bias=True
+        )  # torch.nn.Linear(H2, D_out, bias=True)
+
+    ### Initialize System Dynamics ###
+    def InitSystemDynamics(self, F, H):
+        # Set State Evolution Matrix
+        self.F = F
+        self.m = self.F.shape[0]
+
+        # Set Observation Matrix
+        self.H = H
+        self.n = self.H.shape[0]
+
+    ### Initialize Sequence ###
+    def InitSequence(self, M1_0=None, batch_size=0, reset_hidden_state=True):
+        if not batch_size:
+            batch_size = 1
+        if M1_0 is None:
+            self.m1x_prior = tf.zeros((batch_size, 4, 1))
+            self.m1x_posterior = tf.zeros((batch_size, 4, 1))
+        else:
+            self.m1x_prior = M1_0
+            self.m1x_posterior = M1_0
+
+        if reset_hidden_state:
+            self.hn = tf.random.normal(
+                (self.seq_len_hidden, batch_size, self.hidden_dim)
+            )
+
+    def predict(self):
+        return tf.squeeze(self.H @ (self.F @ self.m1x_posterior))
+
+    ##############################
+    ### Kalman Gain Estimation ###
+    ##############################
+    def step_KGain_est(self, y):
+
+        # Reshape and Normalize the difference in X prior
+        # Feature 4: x_t|t - x_t|t-1
+        dm1x = self.m1x_posterior - self.m1x_prev_prior
+
+        # print(dm1x.shape, y.shape)
+        dm1x_reshape = tf.reshape(dm1x, (y.shape[0], 4))
+        dm1x_norm = tf.nn.l2_normalize(dm1x_reshape, axis=1, epsilon=1e-12)
+
+        # Feature 2: yt - y_t+1|t
+        dm1y = y - tf.reshape(self.m1y, (y.shape[0], 2))
+        dm1y_norm = tf.nn.l2_normalize(dm1y, axis=1, epsilon=1e-12)
+
+        # KGain Net Input
+
+        # Feature 1: yt - y_t-1
+        dm1y_f1 = y - self.y_prev
+        dm1y_norm_f1 = tf.nn.l2_normalize(dm1y, axis=1, epsilon=1e-12)
+        self.y_prev = y
+
+        KGainNet_in = tf.concat([dm1y_norm, dm1y_norm_f1, dm1x_norm], axis=1)
+
+        # Kalman Gain Network Step
+        KG = self.KGain_step(KGainNet_in)
+
+        # Reshape Kalman Gain to a Matrix
+        self.KGain = tf.reshape(KG, (y.shape[0], self.m, self.n))
+
+    #######################
+    ### Kalman Net Step ###
+    #######################
+    def KNet_step(self, y):
+
+        ### Compute Priors ###
+
+        # Predict the 1-st moment of x
+        self.m1x_prev_prior = self.m1x_prior
+
+        self.m1x_prior = tf.linalg.matmul(self.F, self.m1x_posterior)
+
+        # Predict the 1-st moment of y
+        self.m1y = tf.linalg.matmul(self.H, self.m1x_prior)
+
+        ### Compute Kalman Gain ###
+        self.step_KGain_est(y)
+
+        # Innovation
+        y_obs = tf.transpose(tf.expand_dims(y, axis=1), perm=(0, 2, 1))
+        dy = y_obs - self.m1y
+
+        # Compute the 1-st posterior moment
+        INOV = tf.linalg.matmul(self.KGain, dy)
+        self.m1x_posterior = self.m1x_prior + INOV
+
+        prediction = self.predict()
+
+        return [self.m1x_prior, self.m1x_posterior, self.KGain, self.hn, prediction]
+
+    ########################
+    ### Kalman Gain Step ###
+    ########################
+    def KGain_step(self, KGainNet_in):
+
+        ###################
+        ### Input Layer ###
+        ###################
+        # L1_in = self.KG_in(KGainNet_in);
+        if len(KGainNet_in.shape) == 1:
+            KGainNet_in = tf.transpose(tf.expand_dims(KGainNet_in, axis=1))
+        L1_out = self.KG_l1(KGainNet_in)
+        # L1_out = self.KG_l1(KGainNet_in);
+        La1_out = self.KG_relu1(L1_out)
+
+        ###########
+        ### GRU ###
+        ###########
+        GRU_in = tf.transpose(tf.expand_dims(La1_out, axis=0), perm=(1, 0, 2))
+
+        shape = (KGainNet_in.shape[0], self.hidden_dim)
+        GRU_out, self.hn = self.GRU(GRU_in, initial_state=tf.reshape(self.hn, shape))
+
+        GRU_out_reshape = tf.reshape(GRU_out, shape)
+
+        ####################
+        ### Hidden Layer ###
+        ####################
+
+        L2_out = self.KG_l2(GRU_out_reshape)
+        La2_out = self.KG_relu2(L2_out)
+
+        ####################
+        ### Output Layer ###
+        ####################
+        L3_out = self.KG_l3(La2_out)
+        return L3_out
+
+    ###############
+    ### Forward ###
+    ###############
+    def call(self, inputs, track_mode=True):
+        if track_mode:
+            yt, y_prev, m1x_prior, m1x_posterior, KGain, hn = inputs
+            # Set inputs
+            self.y_prev = y_prev
+            self.m1x_prior = m1x_prior
+            self.m1x_posterior = m1x_posterior
+            self.KGain = KGain
+            self.hn = hn
+        else:
+            yt = inputs
+
+        output_list = self.KNet_step(
+            yt
+        )  # [m1x_prior, m1x_posterior, KGain, hn, prediction]
+        if track_mode:
+            output = output_list
+        else:
+            output = output_list[1]
+        return output
+
+    #########################
+    ### Init Hidden State ###
+    #########################
+    def init_hidden(self):
+        self.GRU.reset_states()

@@ -1,0 +1,26 @@
+localization_folder: .temp/localizations.hdf5 # set to your own folder with localizations
+save_folder_name: tracks
+
+tracking:
+  upscale: 8
+  frame_rate: 100
+  track_mode: simple
+  mode_MB_loc: localization
+  mode_vel: calculate
+  postprocess: true
+  min_length: 0 # set to some value around 10
+  max_linking_distance: 2
+  interpolation: 1
+  smoothening: 2
+  smooth_factor: 19
+  max_frame_skipped: 3
+
+visualization:
+  saturation: 0.8
+  brighten: 0.4
+  comprVel: 0.25
+  comprDen: 0.33
+  shadow: 0.3
+  style: ius
+  dpi: 600
+  filetype: png
