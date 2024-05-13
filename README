@@ -11,9 +11,20 @@ Performs the following steps:
 
 Example usage:
 
+```bash
+python main.py -c ./configs/tracking_config.yaml
+```
+
+```bash
+Args:
+    -c (--config): path to tracking config file.
+    -s (--save): Save raw tracks to file
+    --skip: Skip folders that already have tracks.
+
+```
 
 > **Note:**
-> Make sure the localizations are stored in the correct format (hdf5) and have only a single localization file per folder. You can refer to the `read.py` file and the `ReadLocs` class for more information on the correct format.
+Make sure the localizations are stored in the correct format (hdf5) and have only a single localization file per folder. You can refer to the `read.py` file and the `ReadLocs` class for more information on the correct format.
 
 ### Save localizations
 An example of how to save localizations to hdf5 format is shown in [save_localizations.py](./save_localizations.py). This script saves some dummy localizations to a file in the correct format. You should be able to run [main.py](./main.py) with the output of this script.
