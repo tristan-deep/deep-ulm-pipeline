@@ -100,6 +100,8 @@ def postprocess_tracks(
         raw_tracks, (list, np.ndarray)
     ), f"raw_tracks must be list or ndarray, not {type(raw_tracks)}"
 
+    assert smooth_factor is None or smooth_factor % 2 == 1, "smooth_factor must be odd"
+
     interp_factor = 1 / max_linking_distance / upsampling_factor * interp_exp
     if index_keys is None:
         index_keys = {

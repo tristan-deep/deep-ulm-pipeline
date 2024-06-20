@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 
-from read import ReadTracks
+from read import Config, ReadTracks, load_config_from_yaml
 from utils import translate, yellow
 
 
@@ -660,7 +660,11 @@ def show_ulm(
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Process tracks from file path")
-    parser.add_argument("file_path", type=Path, help="Path to the file")
+    parser.add_argument(
+        "file_path",
+        type=Path,
+        help="Path to the file",  # default=".temp/tracks.hdf5"
+    )
     # Post process tracking arguments
     parser.add_argument(
         "--upsampling_factor", type=int, default=8, help="Upsampling factor"
@@ -696,6 +700,11 @@ def parse_args():
         "--save_dir", type=str, default="./images", help="Save directory"
     )
     parser.add_argument(
+        "--postprocessed",
+        action="store_true",
+        help="Tracks are already postprocessed, so skip postprocessing.",
+    )
+    parser.add_argument(
         "--filetype",
         type=str,
         default="png",
@@ -709,7 +718,13 @@ def parse_args():
         "--show_matplotlib", action="store_true", help="Show matplotlib plot"
     )
     parser.add_argument("--show_pillow", action="store_true", help="Show PIL image")
-
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        help="Path to config file, will override all other arguments.",
+        default=None,
+    )
     args = parser.parse_args()
     return args
 
@@ -721,6 +736,23 @@ if __name__ == "__main__":
 
     tracks_obj = ReadTracks(file_path)
     tracks_obj.read()
+    if args.postprocessed:
+        tracks_obj.tracks_post = tracks_obj.tracks
+
+    if args.config:
+        config_path = args.config
+        config = load_config_from_yaml(config_path)
+        config = Config(config)
+
+        print(f"Loaded config: {yellow(config_path)}")
+        print("Using config params for visualization.")
+        save_dir = args.save_dir
+        args = config.visualization
+        args.upsampling_factor = config.tracking.upscale
+        args.min_length = config.tracking.min_length
+        args.max_linking_distance = config.tracking.max_linking_distance
+        args.smooth_factor = config.tracking.smooth_factor
+        args.save_dir = save_dir
 
     (
         density_map,
@@ -737,6 +769,8 @@ if __name__ == "__main__":
     show_ulm(
         ulm_den=density_map,
         ulm_v=velocity_map_norm,
+        ulm_vx=velocity_map_x,
+        ulm_vz=velocity_map_z,
         saturation=args.saturation,
         brighten=args.brighten,
         sigma_gauss=args.sigma_gauss,
