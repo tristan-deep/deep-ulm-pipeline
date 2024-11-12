@@ -39,8 +39,8 @@ An example of how to save localizations to hdf5 format is shown in [save_localiz
 Create a conda environment and pip install requirements.
 
 ```bash
-conda create -n ulm python=3.6 -y
-conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0 -y
+conda create -n ulm python=3.8 -y
 conda activate ulm
+conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0 -y
 pip install -r requirements.txt
 ```

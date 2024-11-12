@@ -242,3 +242,7 @@ def find_peaks_tensorflow(data, thres):
     sr_map = np.array(binary_map).astype("int64")
     sr_map = np.sum(sr_map, axis=0).squeeze()
     return peaks, sr_map
+
+
+def yellow(text):
+    return f"\033[93m{text}\033[0m"
