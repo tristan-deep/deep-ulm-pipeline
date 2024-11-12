@@ -1,6 +1,6 @@
 ## A tracking and visualization pipeline for ULM
 
-> ** 🚨 New:**
+> **🚨 New:**
 Added deepULM localization model! See this [script](./model.py).
 
 Performs the following steps:
@@ -43,4 +43,19 @@ conda create -n ulm python=3.8 -y
 conda activate ulm
 conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0 -y
 pip install -r requirements.txt
+```
+
+### Citation
+
+If you use this pipeline in your research, please cite the following paper:
+
+```
+@inproceedings{stevens2022hybrid,
+    title={A Hybrid Deep Learning Pipeline for Improved Ultrasound Localization Microscopy},
+    author={Stevens, Tristan SW and Herbst, Elizabeth B and Luijten, Ben and Ossenkoppele, Boudewine W and Voskuil, Thierry J and Wang, Shiying and Youn, Jihwan and Errico, Claudia and Mischi, Massimo and Pezzotti, Nicola and others},
+    booktitle={2022 IEEE International Ultrasonics Symposium (IUS)},
+    pages={1--4},
+    year={2022},
+    organization={IEEE}
+}
 ```
