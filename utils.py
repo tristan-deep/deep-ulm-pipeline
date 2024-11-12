@@ -169,3 +169,76 @@ def make_unique_path(save_dir):
             except FileExistsError:
                 post_fix += 1
     return save_dir
+
+
+def generate_fake_bmode_data(
+    shape, normalization_range=(0, 1), num_blobs=10, std_dev_range=(1, 5)
+):
+    """Quickly generate some fake B-mode data for testing purposes."""
+    # Create an empty array
+    data = np.zeros(shape)
+
+    for _ in range(num_blobs):
+        # Randomly choose the center of the blob
+        center = np.random.randint(0, shape[0], size=2)
+        # Randomly choose the standard deviation of the blob
+        std_dev = np.random.uniform(*std_dev_range)
+
+        # Create a Gaussian blob
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                data[i, j] += np.exp(
+                    -((i - center[0]) ** 2 + (j - center[1]) ** 2) / (2 * std_dev**2)
+                )
+
+    # Normalize the data
+    data_min, data_max = normalization_range
+    data = (data - np.min(data)) / (np.max(data) - np.min(data))
+    data = data * (data_max - data_min) + data_min
+
+    return data
+
+
+def find_peaks_tensorflow(data, thres):
+    """Find peaks in a 2D image."""
+    tmp_data = data
+
+    # peak detection using max pooling
+    # pad ones instead of zeros to avoid boundary artifact
+    in_height, in_width = data.shape[1:3]
+    stride_height = stride_width = 1
+    filter_height = filter_width = 3
+    if in_height % stride_height == 0:
+        pad_along_height = max(filter_height - stride_height, 0)
+    else:
+        pad_along_height = max(filter_height - (in_height % stride_height), 0)
+    if in_width % stride_width == 0:
+        pad_along_width = max(filter_width - stride_width, 0)
+    else:
+        pad_along_width = max(filter_width - (in_width % stride_width), 0)
+    pad_top = pad_along_height // 2
+    pad_bottom = pad_along_height - pad_top
+    pad_left = pad_along_width // 2
+    pad_right = pad_along_width - pad_left
+    paddings = [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]]
+    tmp_data_padded = tf.pad(tmp_data, paddings, mode="CONSTANT", constant_values=1)
+    maxpool_data = tf.nn.pool(
+        tmp_data_padded,
+        window_shape=(filter_height, filter_width),
+        pooling_type="MAX",
+        padding="VALID",
+    )
+    binary_map = tf.logical_and(
+        tf.equal(tmp_data, maxpool_data), tf.greater(tmp_data, thres)
+    )
+    peaks = tf.where(binary_map)
+
+    intensity = tf.gather_nd(data, peaks)
+    peaks = peaks.numpy().astype("float64")
+
+    peaks[:, 3] = peaks[:, 0]
+    peaks[:, 0] = intensity
+
+    sr_map = np.array(binary_map).astype("int64")
+    sr_map = np.sum(sr_map, axis=0).squeeze()
+    return peaks, sr_map

@@ -6,4 +6,5 @@ PyYAML
 scikit_learn
 scipy
 tqdm
-tensorflow_gpu==2.9.2
+huggingface_hub
+tensorflow<2.11
