@@ -1,6 +1,6 @@
 ## A tracking and visualization pipeline for ULM
 
-> **New:**
+> ** 🚨 New:**
 Added deepULM localization model! See this [script](./model.py).
 
 Performs the following steps:
