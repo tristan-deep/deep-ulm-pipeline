@@ -31,8 +31,9 @@ import argparse
 import shutil
 from pathlib import Path
 
+from config import Config, load_config_from_yaml
 from locs_to_tracks import locs_to_tracks
-from read import Config, ReadLocs, ReadTracks, load_config_from_yaml
+from read import ReadLocs, ReadTracks
 from utils import make_unique_path, yellow
 from visualization import show_ulm
 

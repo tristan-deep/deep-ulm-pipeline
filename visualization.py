@@ -14,7 +14,8 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 
-from read import Config, ReadTracks, load_config_from_yaml
+from read import ReadTracks,
+from config import Config, load_config_from_yaml
 from utils import translate, yellow
 
 
