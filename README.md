@@ -1,7 +1,7 @@
 ## A tracking and visualization pipeline for ULM
 
-> **🚨 New:**
-Added deepULM localization model! See this [script](./model.py).
+> [!TIP]
+> **🚨 New:** localization model added (deepULM)! See this [script](./model.py).
 
 Performs the following steps:
 - Load localization data from hdf5 file
@@ -26,8 +26,8 @@ Args:
 
 ```
 
-> **Note:**
-Make sure the localizations are stored in the correct format (hdf5) and have only a single localization file per folder. You can refer to the `read.py` file and the `ReadLocs` class for more information on the correct format.
+> [!NOTE]
+> Make sure the localizations are stored in the correct format (hdf5) and have only a single localization file per folder. You can refer to the `read.py` file and the `ReadLocs` class for more information on the correct format.
 
 ### Save localizations
 An example of how to save localizations to hdf5 format is shown in [save_localizations.py](./save_localizations.py). This script saves some dummy localizations to a file in the correct format. You should be able to run [main.py](./main.py) with the output of this script.

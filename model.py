@@ -137,7 +137,10 @@ if __name__ == "__main__":
         color="r",
         s=3,
     )
+    for ax in axs:
+        ax.axis("off")
 
     path = "test_localization_model.png"
+    fig.patch.set_facecolor("black")
     fig.savefig(path, bbox_inches="tight")
     print(f"Saved image to {path}")
