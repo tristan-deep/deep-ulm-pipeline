@@ -3,14 +3,12 @@
 Author: Tristan Stevens
 """
 
-import copy
 from pathlib import Path
 from typing import Union
 
 import h5py
 import numpy as np
 import scipy.io as sio
-import yaml
 
 from tracks_to_map import postprocess_tracks, tracks_to_map
 from utils import array_idx_to_list, list_to_array_idx, yellow
